@@ -16,8 +16,9 @@ UPLOAD_FILE_NAME = 'testfile.txt'
 
 
 def get_bucket_name(function_name: str) -> str:
-    return f'{function_name}-{time.time()}'.replace('_', '-')
+    return f'{function_name[:50]}-{time.time()}'.replace('_', '-')
 
+container = DockerContainer("adobe/s3mock:4.8.0").with_exposed_ports(9090, 9191).with_env("debug", "true")
 
 class TestS3Mock:
     __AWS_ACCESS_KEY = 'dummy-key'
@@ -27,24 +28,20 @@ class TestS3Mock:
     __READ_TIMEOUT = 60  # AWS default
     __MAX_RETRIES = 3
 
-    @pytest.fixture()
-    def s3mock_container(self) -> DockerContainer:
-        container = (DockerContainer("adobe/s3mock:4.8.0")
-                     .with_exposed_ports(9090, 9191)
-                     .with_env("debug", "true")
-                     .start())
+    @pytest.fixture(scope="module", autouse=True)
+    def s3mock_container(self):
+        # start the container here, the ryuk container will stop it for us after the tests
         container.waiting_for(LogMessageWaitStrategy(re.compile(r'.*Started S3MockApplication.*')))
-        yield container
-        container.stop()
+        container.start()
 
     @pytest.fixture()
-    def endpoint_url(self, s3mock_container) -> str:
-        ip = s3mock_container.get_container_host_ip()
-        port = s3mock_container.get_exposed_port(9090)
+    def endpoint_url(self) -> str:
+        ip = container.get_container_host_ip()
+        port = container.get_exposed_port(9090)
         return f'http://{ip}:{port}'
 
     @pytest.fixture()
-    def s3_client(self, s3mock_container, endpoint_url) -> S3Client:
+    def s3_client(self, endpoint_url) -> S3Client:
         config = Config(connect_timeout=self.__CONNECTION_TIMEOUT,
                         read_timeout=self.__READ_TIMEOUT,
                         retries={'max_attempts': self.__MAX_RETRIES},
