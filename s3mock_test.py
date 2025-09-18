@@ -28,7 +28,7 @@ class TestS3Mock:
 
     @pytest.fixture()
     def s3mock_container(self) -> DockerContainer:
-        container = (DockerContainer("adobe/s3mock:3.1.0")
+        container = (DockerContainer("adobe/s3mock:4.8.0")
                      .with_exposed_ports(9090, 9191)
                      .with_env("debug", "true")
                      .start())
