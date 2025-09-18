@@ -1,4 +1,5 @@
 import inspect
+import re
 import time
 import types
 from typing import cast
@@ -9,7 +10,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.client import S3Client
 from testcontainers.core.container import DockerContainer  # type: ignore[import-untyped]
-from testcontainers.core.waiting_utils import wait_for_logs  # type: ignore[import-untyped]
+from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 UPLOAD_FILE_NAME = 'testfile.txt'
 
@@ -32,7 +33,7 @@ class TestS3Mock:
                      .with_exposed_ports(9090, 9191)
                      .with_env("debug", "true")
                      .start())
-        _ = wait_for_logs(container, ".*Started S3MockApplication.*")
+        container.waiting_for(LogMessageWaitStrategy(re.compile(r'.*Started S3MockApplication.*')))
         yield container
         container.stop()
 
