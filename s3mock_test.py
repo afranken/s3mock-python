@@ -8,8 +8,8 @@ import pytest
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.client import S3Client
-from testcontainers.core.container import DockerContainer
-from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.core.container import DockerContainer  # type: ignore[import-untyped]
+from testcontainers.core.waiting_utils import wait_for_logs  # type: ignore[import-untyped]
 
 UPLOAD_FILE_NAME = 'testfile.txt'
 
@@ -48,8 +48,7 @@ class TestS3Mock:
                         read_timeout=self.__READ_TIMEOUT,
                         retries={'max_attempts': self.__MAX_RETRIES},
                         signature_version='s3v4',
-                        s3={'addressing_style': 'path',
-                            'endpoint_url': endpoint_url})
+                        s3={'addressing_style': 'path'})
         return boto3.client('s3',
                             aws_access_key_id=self.__AWS_ACCESS_KEY,
                             aws_secret_access_key=self.__AWS_SECRET_ACCESS_KEY,
