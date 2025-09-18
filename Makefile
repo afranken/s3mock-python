@@ -9,7 +9,7 @@ venv:
 
 # Run tests
 test:
-	@uv run --no-project pytest -q s3mock_test.py
+	@uv run --no-project pytest -q
 
 # Lint with ruff
 lint:
