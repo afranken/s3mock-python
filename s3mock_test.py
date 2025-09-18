@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import re
 import time
 from typing import Iterable, Optional
@@ -54,6 +56,12 @@ def s3mock_container():
 @pytest.fixture(scope="session")
 def endpoint_url(s3mock_container) -> str:
     ip = container.get_container_host_ip()
+    port = container.get_exposed_port(9191)
+    return f'https://{ip}:{port}'
+
+@pytest.fixture(scope="session")
+def endpoint_url_http(s3mock_container) -> str:
+    ip = container.get_container_host_ip()
     port = container.get_exposed_port(9090)
     return f'http://{ip}:{port}'
 
@@ -73,6 +81,25 @@ def s3_client(endpoint_url) -> S3Client:
         aws_session_token=_AWS_SESSION_TOKEN,
         config=config,
         endpoint_url=endpoint_url,
+        verify=False,  # Skip SSL certificate verification (use only in tests)
+    )
+
+@pytest.fixture(scope="session", autouse=True)
+def s3_client_http(endpoint_url_http) -> S3Client:
+    config = Config(
+        connect_timeout=_CONNECTION_TIMEOUT,
+        read_timeout=_READ_TIMEOUT,
+        retries={'max_attempts': _MAX_RETRIES},
+        signature_version='s3v4',
+        s3={'addressing_style': 'path'},
+    )
+    return boto3.client(
+        's3',
+        aws_access_key_id=_AWS_ACCESS_KEY,
+        aws_secret_access_key=_AWS_SECRET_ACCESS_KEY,
+        aws_session_token=_AWS_SESSION_TOKEN,
+        config=config,
+        endpoint_url=endpoint_url_http,
     )
 
 def delete_multipart_uploads(s3_client: S3Client, bucket_name: str) -> None:
@@ -171,3 +198,12 @@ def given_bucket(s3_client: S3Client, bucket_name: str) -> dict[str, str | int]:
 def given_object(s3_client: S3Client, bucket_name: str, object_name: str = UPLOAD_FILE_NAME) -> dict[str, str | int]:
     with open('testfile.txt', 'rb') as file:
         return s3_client.put_object(Bucket=bucket_name, Key=object_name, Body=file.read())
+
+def compute_md5_etag(data: bytes) -> str:
+    # S3 single-part ETag is the hex MD5 in quotes
+    return f"\"{hashlib.md5(data).hexdigest()}\""
+
+
+def compute_sha256_checksum_b64(data: bytes) -> str:
+    # AWS returns base64-encoded checksum for SHA256
+    return base64.b64encode(hashlib.sha256(data).digest()).decode("ascii")
