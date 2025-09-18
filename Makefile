@@ -1,8 +1,20 @@
+.PHONY: default ci venv test lint typecheck
 
 default: ci
 
-ci: prepare-pip
-	@pytest s3mock_test.py
+ci: venv test
 
-prepare-pip:
-	@pip install -r requirements.txt
+venv:
+	@uv sync --group dev --no-install-project
+
+# Run tests
+test:
+	@uv run --no-project pytest -q s3mock_test.py
+
+# Lint with ruff
+lint:
+	@uv run --no-project ruff check .
+
+# Type-check with mypy
+typecheck:
+	@uv run --no-project mypy .

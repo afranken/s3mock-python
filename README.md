@@ -1,14 +1,33 @@
 # S3Mock python test
 
-Tests the [Adobe S3Mock](https://github.com/adobe/S3Mock) with [TestContainers](https://testcontainers.com/) in python
+Tests the [Adobe S3Mock](https://github.com/adobe/S3Mock) with [Testcontainers](https://testcontainers.com/) in Python.
 
-## Build
+## Requirements
+- Python 3.9+
+- [uv](https://docs.astral.sh/uv/) (fast Python package/dependency manager)
+- Docker (required by testcontainers to run the S3Mock container)
 
-This repo needs Python 3.9+ to build.
+## Quick start
 
-Run 
-```shell
+```bash
+# Create a local .venv and install dependencies
+uv venv
+uv sync --group dev
+
+# Run the tests
+uv run pytest -q
+
+# Or just use make (wraps uv)
 make
 ```
 
-This will install all requirements and run all tests.
+## Make targets
+- make venv — create venv and install deps via uv
+- make test — run tests
+- make lint — run ruff
+- make typecheck — run mypy
+- make (default) — venv + test
+
+## Notes
+- Dependency management has been migrated to pyproject.toml (PEP 621). Use uv instead of pip/requirements.txt.
+- If you still prefer pip, see requirements.txt, but it is deprecated and may lag behind.
