@@ -3,18 +3,25 @@ import hashlib
 import re
 import time
 from typing import Iterable, Optional
+import os
 
 import boto3
 import pytest
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.type_defs import CreateBucketOutputTypeDef, PutObjectOutputTypeDef
 from testcontainers.core.container import DockerContainer  # type: ignore[import-untyped]
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 UPLOAD_FILE_NAME = 'testfile.txt'
 
-container = DockerContainer("adobe/s3mock:4.8.0").with_exposed_ports(9090, 9191).with_env("debug", "true")
+container = (
+    DockerContainer("adobe/s3mock:4.9.0")
+    .with_exposed_ports(9090, 9191)
+    .with_env("debug", "true")
+    .with_env("COM_ADOBE_TESTING_S3MOCK_DOMAIN_INITIAL_BUCKETS", "bucket-a, bucket-b")
+)
 
 # Constants used for S3 client configuration (moved from TestS3Mock to module scope)
 _AWS_ACCESS_KEY = 'dummy-key'
@@ -29,9 +36,11 @@ def test_name(request) -> str:
     # Prefer originalname; fall back to name if unavailable
     return getattr(request.node, "originalname", request.node.name)
 
+# Bucket name max length is 63 characters.
+# Truncate the test function name to 50 characters, plus a random suffix to avoid collisions
 @pytest.fixture(scope="function", autouse=True)
 def bucket_name(test_name: str) -> str:
-    return f'{test_name[:50]}-{time.time()}'.replace('_', '-')
+    return f'{test_name[:50]}-{int(time.time())}'.replace('_', '-')
 
 @pytest.fixture(autouse=True)
 def cleanup(s3_client: S3Client):
@@ -42,25 +51,37 @@ def cleanup(s3_client: S3Client):
     # clean up all resources created during the test
     buckets = s3_client.list_buckets()
     for bucket in buckets['Buckets']:
-        name = bucket['Name']
-        delete_multipart_uploads(s3_client, name)
-        delete_objects_in_bucket(s3_client, name, object_lock_enabled=False)
-        s3_client.delete_bucket(Bucket=name)
+        if bucket['Name'] != 'bucket-a' and bucket['Name'] != 'bucket-b':
+            name = bucket['Name']
+            delete_multipart_uploads(s3_client, name)
+            delete_objects_in_bucket(s3_client, name, object_lock_enabled=False)
+            s3_client.delete_bucket(Bucket=name)
 
 @pytest.fixture(scope="session", autouse=True)
 def s3mock_container():
     # Start the container once per test session; Ryuk will stop it afterward
     container.waiting_for(LogMessageWaitStrategy(re.compile(r'.*Started S3MockApplication.*')))
-    container.start()
+    # for testing against a locally running S3Mock, do not start container here:
+    env_endpoint = os.getenv("S3MOCK_ENDPOINT")
+    if not env_endpoint:
+        container.start()
 
 @pytest.fixture(scope="session")
 def endpoint_url(s3mock_container) -> str:
+    # Allow overriding via environment variable for testing against a locally running S3Mock
+    env_endpoint = os.getenv("S3MOCK_ENDPOINT")
+    if env_endpoint:
+        return env_endpoint
     ip = container.get_container_host_ip()
     port = container.get_exposed_port(9191)
     return f'https://{ip}:{port}'
 
 @pytest.fixture(scope="session")
 def endpoint_url_http(s3mock_container) -> str:
+    # Allow overriding via environment variable for testing against a locally running S3Mock
+    env_endpoint = os.getenv("S3MOCK_ENDPOINT_HTTP")
+    if env_endpoint:
+        return env_endpoint
     ip = container.get_container_host_ip()
     port = container.get_exposed_port(9090)
     return f'http://{ip}:{port}'
@@ -192,10 +213,12 @@ def delete_bucket(s3_client: S3Client, bucket_name: str) -> None:
         # Expected: head_bucket should fail if the bucket no longer exists
         pass
 
-def given_bucket(s3_client: S3Client, bucket_name: str) -> dict[str, str | int]:
-    return s3_client.create_bucket(Bucket=bucket_name)
+def given_bucket(s3_client: S3Client, bucket_name: str) -> CreateBucketOutputTypeDef:
+    bucket = s3_client.create_bucket(Bucket=bucket_name)
+    s3_client.get_waiter("bucket_exists").wait(Bucket=bucket_name)
+    return bucket
 
-def given_object(s3_client: S3Client, bucket_name: str, object_name: str = UPLOAD_FILE_NAME) -> dict[str, str | int]:
+def given_object(s3_client: S3Client, bucket_name: str, object_name: str = UPLOAD_FILE_NAME) -> PutObjectOutputTypeDef:
     with open('testfile.txt', 'rb') as file:
         return s3_client.put_object(Bucket=bucket_name, Key=object_name, Body=file.read())
 

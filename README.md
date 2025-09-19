@@ -29,5 +29,16 @@ make
 - make typecheck — run mypy
 - make (default) — venv + test
 
+## Test against locally running S3Mock
+To test against a locally running S3Mock, set these two environment variables:
+* `S3MOCK_ENDPOINT` to the HTTPS endpoint of the S3Mock instance.
+* `S3MOCK_ENDPOINT_HTTP` to the HTTP endpoint of the S3Mock instance.
+
+Example:
+```bash
+docker run -p 9090:9090 -p 9191:9191 -v s3mock-test:/s3mock-test -e root=/s3mock-test -e validKmsKeys="arn:aws:kms:us-east-1:1234567890:key/valid-test-key-id" -e initialBuckets="bucket-a, bucket-b" -e SPRING_PROFILES_ACTIVE=debug -t adobe/s3mock:4.9.0
+S3MOCK_ENDPOINT=https://localhost:9191 S3MOCK_ENDPOINT_HTTP=http://localhost:9090 make
+```
+
 ## Notes
 - Dependency management has been migrated to pyproject.toml (PEP 621). Use uv instead of pip/requirements.txt.
