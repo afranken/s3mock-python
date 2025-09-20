@@ -1,4 +1,4 @@
-from s3mock_test import UPLOAD_FILE_NAME, given_object, given_bucket
+from s3mock_test import UPLOAD_FILE_NAME, given_bucket, given_object
 
 # reimplementation of https://github.com/adobe/S3Mock/blob/main/integration-tests/src/test/kotlin/com/adobe/testing/s3mock/its/AclIT.kt
 

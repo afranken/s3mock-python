@@ -2,12 +2,19 @@ from typing import Any
 
 from mypy_boto3_s3.client import S3Client
 
-from s3mock_test import given_bucket, UPLOAD_FILE_NAME, compute_md5_etag, compute_sha256_checksum_b64
-
+from s3mock_test import (
+    UPLOAD_FILE_NAME,
+    compute_md5_etag,
+    compute_sha256_checksum_b64,
+    given_bucket,
+)
 
 # reimplementation of https://github.com/adobe/S3Mock/blob/main/integration-tests/src/test/kotlin/com/adobe/testing/s3mock/its/AwsChunkedEncodingIT.kt
 
-def test_put_object_with_checksum_returns_correct_checksum_get_object_returns_checksum(s3_client_http: S3Client, bucket_name: str) -> None:
+def test_put_object_with_checksum_returns_correct_checksum_get_object_returns_checksum(
+        s3_client_http: S3Client,
+        bucket_name: str
+) -> None:
     # Arrange
     given_bucket(s3_client_http, bucket_name)
 
@@ -43,7 +50,11 @@ def test_put_object_with_checksum_returns_correct_checksum_get_object_returns_ch
     assert get_resp.get("ChecksumSHA256") == expected_checksum
     assert get_resp.get("ContentEncoding") != 'aws-chunked'
 
-def test_put_object_creates_correct_etag_get_object_returns_etag(s3_client_http: S3Client, bucket_name: str) -> None:
+
+def test_put_object_creates_correct_etag_get_object_returns_etag(
+        s3_client_http: S3Client,
+        bucket_name: str
+) -> None:
     # Arrange
     given_bucket(s3_client_http, bucket_name)
 
@@ -71,7 +82,11 @@ def test_put_object_creates_correct_etag_get_object_returns_etag(s3_client_http:
     assert get_resp.get("ContentLength") == expected_length
     assert get_resp.get("ContentEncoding") != "aws-chunked"
 
-def test_put_object_sets_content_encoding_get_object_returns_content_encoding(s3_client_http: S3Client, bucket_name: str) -> None:
+
+def test_put_object_sets_content_encoding_get_object_returns_content_encoding(
+        s3_client_http: S3Client,
+        bucket_name: str
+) -> None:
     # Arrange
     given_bucket(s3_client_http, bucket_name)
     custom_encoding = "my-custom-encoding"
@@ -95,4 +110,3 @@ def test_put_object_sets_content_encoding_get_object_returns_content_encoding(s3
 
     # Assert - ContentEncoding is preserved
     assert get_resp.get("ContentEncoding") == custom_encoding
-

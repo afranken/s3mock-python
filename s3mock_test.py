@@ -1,21 +1,21 @@
 import base64
+import datetime as dt
 import hashlib
+import os
 import re
 import time
 import uuid
-from typing import Iterable, Optional
-import os
 from pathlib import Path
+from typing import Iterable, Optional
 
 import boto3
-import datetime as dt
 import pytest
+from boto3.s3.transfer import TransferConfig
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.client import S3Client
 from mypy_boto3_s3.type_defs import CreateBucketOutputTypeDef, PutObjectOutputTypeDef
 from s3transfer.manager import TransferManager
-from boto3.s3.transfer import TransferConfig
 from testcontainers.core.container import DockerContainer  # type: ignore[import-untyped]
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
@@ -180,7 +180,11 @@ def delete_multipart_uploads(s3_client: S3Client, bucket_name: str) -> None:
         key_marker = resp.get("NextKeyMarker")
         upload_id_marker = resp.get("NextUploadIdMarker")
 
-def delete_objects_in_bucket(s3_client: S3Client, bucket_name: str, object_lock_enabled: bool) -> None:
+def delete_objects_in_bucket(
+        s3_client: S3Client,
+        bucket_name: str,
+        object_lock_enabled: bool
+) -> None:
     """
     Delete all object versions and delete markers in the bucket.
     If object lock is enabled, clear any potential legal holds before deletion.
@@ -222,7 +226,10 @@ def delete_objects_in_bucket(s3_client: S3Client, bucket_name: str, object_lock_
                 VersionId=marker["VersionId"],
             )
 
-def delete_bucket(s3_client: S3Client, bucket_name: str) -> None:
+def delete_bucket(
+        s3_client: S3Client,
+        bucket_name: str
+) -> None:
     """
     Delete the bucket and wait until it no longer exists.
     """
@@ -240,12 +247,20 @@ def delete_bucket(s3_client: S3Client, bucket_name: str) -> None:
         # Expected: head_bucket should fail if the bucket no longer exists
         pass
 
-def given_bucket(s3_client: S3Client, bucket_name: str) -> CreateBucketOutputTypeDef:
+def given_bucket(
+        s3_client: S3Client,
+        bucket_name: str
+) -> CreateBucketOutputTypeDef:
     bucket = s3_client.create_bucket(Bucket=bucket_name)
     s3_client.get_waiter("bucket_exists").wait(Bucket=bucket_name)
     return bucket
 
-def given_object(s3_client: S3Client, bucket_name: str, object_name: str = UPLOAD_FILE_NAME, **kwargs) -> PutObjectOutputTypeDef:
+def given_object(
+        s3_client: S3Client,
+        bucket_name: str,
+        object_name: str = UPLOAD_FILE_NAME,
+        **kwargs
+) -> PutObjectOutputTypeDef:
     return s3_client.put_object(
         Bucket=bucket_name,
         Key=object_name,

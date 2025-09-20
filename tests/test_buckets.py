@@ -1,7 +1,8 @@
+import time
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from botocore.exceptions import ClientError
-from datetime import datetime, timedelta, timezone
-import time
 
 from s3mock_test import given_bucket
 
@@ -107,7 +108,10 @@ def test_creating_and_listing_multiple_buckets_is_successful(s3_client, bucket_n
     assert owner.get("DisplayName") == "s3-mock-file-store"
     assert owner.get("ID") == "79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be"
 
-def test_creating_and_listing_multiple_buckets_limiting_by_prefix_is_successful(s3_client, bucket_name: str):
+def test_creating_and_listing_multiple_buckets_limiting_by_prefix_is_successful(
+        s3_client,
+        bucket_name: str
+):
     # Create three buckets with a shared base name (prefix)
     created_names = [f"{bucket_name}-1", f"{bucket_name}-2", f"{bucket_name}-3"]
     for n in created_names:
@@ -179,7 +183,8 @@ def test_creating_and_listing_multiple_buckets_limiting_by_max_buckets_is_succes
     assert page1.get("Prefix") in (None, "")  # S3Mock may omit or send empty
     assert page1["ContinuationToken"] is not None
     assert page1["Owner"]["DisplayName"] == "s3-mock-file-store"
-    assert page1["Owner"]["ID"] == "79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be"
+    assert (page1["Owner"]["ID"] ==
+            "79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be")
 
     # Second page using continuation token
     page2 = s3_client.list_buckets(ContinuationToken=page1["ContinuationToken"])
@@ -193,7 +198,8 @@ def test_creating_and_listing_multiple_buckets_limiting_by_max_buckets_is_succes
     assert page2.get("Prefix") in (None, "")
     assert page2.get("ContinuationToken") in (None, "")
     assert page2["Owner"]["DisplayName"] == "s3-mock-file-store"
-    assert page2["Owner"]["ID"] == "79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be"
+    assert (page2["Owner"]["ID"] ==
+            "79a59df900b949e55d96a1e698fbacedfd6e09d98eacf8f8d5218e7cd47ef2be")
 
 def test_default_buckets_were_created(s3_client):
     resp = s3_client.list_buckets()
@@ -225,7 +231,10 @@ def test_by_default_bucket_versioning_is_turned_off(s3_client, bucket_name: str)
     assert resp.get("Status") is None
     assert resp.get("MFADelete") is None
 
-def test_put_bucket_versioning_works_get_bucket_versioning_returns_enabled(s3_client, bucket_name: str):
+def test_put_bucket_versioning_works_get_bucket_versioning_returns_enabled(
+        s3_client,
+        bucket_name: str
+):
     # Create a bucket
     given_bucket(s3_client, bucket_name)
 

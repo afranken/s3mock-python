@@ -6,8 +6,17 @@ import uuid
 import botocore
 import pytest
 
-from s3mock_test import given_bucket, given_object, compute_md5_etag, random_name, special_key, now_utc, \
-    UPLOAD_FILE_NAME, ONE_MB, UPLOAD_FILE_LENGTH
+from s3mock_test import (
+    ONE_MB,
+    UPLOAD_FILE_LENGTH,
+    UPLOAD_FILE_NAME,
+    compute_md5_etag,
+    given_bucket,
+    given_object,
+    now_utc,
+    random_name,
+    special_key,
+)
 
 # reimplementation of https://github.com/adobe/S3Mock/blob/main/integration-tests/src/test/kotlin/com/adobe/testing/s3mock/its/BucketIT.kt
 
@@ -36,7 +45,10 @@ def test_copy_object_succeeds_and_object_can_be_retrieved(s3_client, bucket_name
 
 
 @pytest.mark.skip(reason="Deletion of special keys is not supported yet in cleanup.")
-def test_copy_object_with_key_needing_escaping_succeeds_and_can_be_retrieved(s3_client, bucket_name: str):
+def test_copy_object_with_key_needing_escaping_succeeds_and_can_be_retrieved(
+        s3_client,
+        bucket_name: str
+):
     src_bucket = bucket_name
     given_bucket(s3_client, src_bucket)
     dest_bucket = random_name()
@@ -115,7 +127,10 @@ def test_copy_object_if_match_true_and_if_unmodified_since_false_succeeds(s3_cli
     assert compute_md5_etag(copied_body) == orig_etag
 
 
-def test_copy_object_if_modified_since_true_succeeds_and_can_be_retrieved(s3_client, bucket_name: str):
+def test_copy_object_if_modified_since_true_succeeds_and_can_be_retrieved(
+        s3_client,
+        bucket_name: str
+):
     src_bucket = bucket_name
     given_bucket(s3_client, src_bucket)
     dest_bucket = random_name()
@@ -141,7 +156,10 @@ def test_copy_object_if_modified_since_true_succeeds_and_can_be_retrieved(s3_cli
     assert compute_md5_etag(copied_body) == orig_etag
 
 
-def test_copy_object_if_modified_since_true_and_if_none_match_false_fails(s3_client, bucket_name: str):
+def test_copy_object_if_modified_since_true_and_if_none_match_false_fails(
+        s3_client,
+        bucket_name: str
+):
     src_bucket = bucket_name
     given_bucket(s3_client, src_bucket)
     dest_bucket = random_name()
@@ -154,7 +172,7 @@ def test_copy_object_if_modified_since_true_and_if_none_match_false_fails(s3_cli
     past = now_utc() - dt.timedelta(minutes=5)
 
     with pytest.raises(botocore.exceptions.ClientError) as exc:
-        copy_resp = s3_client.copy_object(
+        s3_client.copy_object(
             Bucket=dest_bucket,
             Key=dest_key,
             CopySource={"Bucket": src_bucket, "Key": src_key},
@@ -166,7 +184,10 @@ def test_copy_object_if_modified_since_true_and_if_none_match_false_fails(s3_cli
     assert err["Code"] in ("PreconditionFailed", "412")
 
 
-def test_copy_object_if_unmodified_since_true_succeeds_and_can_be_retrieved(s3_client, bucket_name: str):
+def test_copy_object_if_unmodified_since_true_succeeds_and_can_be_retrieved(
+        s3_client,
+        bucket_name: str
+):
     src_bucket = bucket_name
     given_bucket(s3_client, src_bucket)
     dest_bucket = random_name()
@@ -225,12 +246,11 @@ def test_copy_object_if_match_false_fails(s3_client, bucket_name: str):
     src_key = UPLOAD_FILE_NAME
     dest_key = f"copyOf/{src_key}"
 
-    put_resp = given_object(s3_client, src_bucket, src_key)
-    orig_etag = put_resp["ETag"]
+    given_object(s3_client, src_bucket, src_key)
     none_matching = f"\"{uuid.uuid4().hex}\""  # a non-matching ETag
 
     with pytest.raises(botocore.exceptions.ClientError) as exc:
-        copy_resp = s3_client.copy_object(
+        s3_client.copy_object(
             Bucket=dest_bucket,
             Key=dest_key,
             CopySource={"Bucket": src_bucket, "Key": src_key},
@@ -253,7 +273,7 @@ def test_copy_object_if_none_match_false_fails(s3_client, bucket_name: str):
     orig_etag = put_resp["ETag"]
 
     with pytest.raises(botocore.exceptions.ClientError) as exc:
-        copy_resp = s3_client.copy_object(
+        s3_client.copy_object(
             Bucket=dest_bucket,
             Key=dest_key,
             CopySource={"Bucket": src_bucket, "Key": src_key},
@@ -272,13 +292,12 @@ def test_copy_object_if_unmodified_since_false_fails(s3_client, bucket_name: str
     src_key = UPLOAD_FILE_NAME
     dest_key = f"copyOf/{src_key}"
 
-    put_resp = given_object(s3_client, src_bucket, src_key)
-    orig_etag = put_resp["ETag"]
+    given_object(s3_client, src_bucket, src_key)
     # If-Unmodified-Since with a timestamp in the past should be false (object modified after that)
     past = now_utc() - dt.timedelta(minutes=5)
 
     with pytest.raises(botocore.exceptions.ClientError) as exc:
-        copy_resp = s3_client.copy_object(
+        s3_client.copy_object(
             Bucket=dest_bucket,
             Key=dest_key,
             CopySource={"Bucket": src_bucket, "Key": src_key},
@@ -297,13 +316,12 @@ def test_copy_object_if_modified_since_false_fails(s3_client, bucket_name: str):
     src_key = UPLOAD_FILE_NAME
     dest_key = f"copyOf/{src_key}"
 
-    put_resp = given_object(s3_client, src_bucket, src_key)
-    orig_etag = put_resp["ETag"]
+    given_object(s3_client, src_bucket, src_key)
     # Choose a future timestamp so condition is "modified since future" -> always false
     future = now_utc() + dt.timedelta(seconds=60)
 
     with pytest.raises(botocore.exceptions.ClientError) as exc:
-        copy_resp = s3_client.copy_object(
+        s3_client.copy_object(
             Bucket=dest_bucket,
             Key=dest_key,
             CopySource={"Bucket": src_bucket, "Key": src_key},
@@ -314,7 +332,10 @@ def test_copy_object_if_modified_since_false_fails(s3_client, bucket_name: str):
     assert err["Code"] in ("PreconditionFailed", "412")
 
 
-def test_copy_object_same_bucket_same_key_with_replace_and_metadata_change(s3_client, bucket_name: str):
+def test_copy_object_same_bucket_same_key_with_replace_and_metadata_change(
+        s3_client,
+        bucket_name: str
+):
     # Arrange
     given_bucket(s3_client, bucket_name)
     key = UPLOAD_FILE_NAME
@@ -355,13 +376,14 @@ def test_copy_object_same_bucket_same_key_with_replace_and_metadata_change(s3_cl
     assert abs(delta - 5) <= 1
 
 
-def test_copy_object_same_bucket_same_key_without_metadata_change_fails(s3_client, bucket_name: str):
+def test_copy_object_same_bucket_same_key_without_metadata_change_fails(
+        s3_client,
+        bucket_name: str
+):
     # Arrange
     given_bucket(s3_client, bucket_name)
     key = UPLOAD_FILE_NAME
-    put_resp = given_object(s3_client, bucket_name, key, Metadata={"test-key": "test-value"})
-    head_src = s3_client.head_object(Bucket=bucket_name, Key=key)
-    src_last_modified = head_src["LastModified"]
+    given_object(s3_client, bucket_name, key, Metadata={"test-key": "test-value"})
 
     # Wait ~5 seconds like in selection
     time.sleep(5)
@@ -377,7 +399,7 @@ def test_copy_object_same_bucket_same_key_without_metadata_change_fails(s3_clien
     assert resp["ResponseMetadata"]["HTTPStatusCode"] == 400
     # The exact message may vary; check for a characteristic phrase if present
     message = resp.get("Error", {}).get("Message", "")
-    assert ("copy" in message.lower() and "itself" in message.lower()) or message == message  # be tolerant to variants
+    assert ("copy" in message.lower() and "itself" in message.lower()) or message == message
 
 
 def test_copy_object_succeeds_with_source_metadata(s3_client, bucket_name: str):
@@ -546,7 +568,12 @@ def test_copy_object_fails_with_non_existing_source_key(s3_client, bucket_name: 
     assert "not exist" in err_msg or "NoSuchKey" in resp.get("Error", {}).get("Code", "")
 
 
-def test_copy_object_large_content_succeeds_with_transfer_manager(s3_client, transfer_manager, bucket_name: str, tmp_path):
+def test_copy_object_large_content_succeeds_with_transfer_manager(
+        s3_client,
+        transfer_manager,
+        bucket_name: str,
+        tmp_path
+):
     # Arrange: content larger than default multipart threshold (~8MiB)
     given_bucket(s3_client, bucket_name)
     source_key = UPLOAD_FILE_NAME
