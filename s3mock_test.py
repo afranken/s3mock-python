@@ -2,19 +2,27 @@ import base64
 import hashlib
 import re
 import time
+import uuid
 from typing import Iterable, Optional
 import os
+from pathlib import Path
 
 import boto3
+import datetime as dt
 import pytest
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from mypy_boto3_s3.client import S3Client
 from mypy_boto3_s3.type_defs import CreateBucketOutputTypeDef, PutObjectOutputTypeDef
+from s3transfer.manager import TransferManager
+from boto3.s3.transfer import TransferConfig
 from testcontainers.core.container import DockerContainer  # type: ignore[import-untyped]
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 UPLOAD_FILE_NAME = 'testfile.txt'
+UPLOAD_FILE_LENGTH = Path(UPLOAD_FILE_NAME).stat().st_size
+REGION = os.getenv("AWS_REGION", "us-east-1")
+ONE_MB = 1024 * 1024
 
 container = (
     DockerContainer("adobe/s3mock:4.9.0")
@@ -94,6 +102,7 @@ def s3_client(endpoint_url) -> S3Client:
         retries={'max_attempts': _MAX_RETRIES},
         signature_version='s3v4',
         s3={'addressing_style': 'path'},
+        max_pool_connections=100,
     )
     return boto3.client(
         's3',
@@ -106,6 +115,19 @@ def s3_client(endpoint_url) -> S3Client:
     )
 
 @pytest.fixture(scope="session", autouse=True)
+def transfer_manager(s3_client: S3Client) -> TransferManager:
+    """
+    Create a Transfer Manager equivalent with multipart enabled and high concurrency.
+    """
+    transfer_config = TransferConfig(
+        multipart_threshold=8 * 1024 * 1024,  # 8 MiB threshold for multipart
+        multipart_chunksize=8 * 1024 * 1024,  # 8 MiB parts
+        max_concurrency=100,                  # similar to CRT maxConcurrency
+        use_threads=True,                     # parallel uploads/downloads
+    )
+    return TransferManager(s3_client, config=transfer_config)
+
+@pytest.fixture(scope="session", autouse=True)
 def s3_client_http(endpoint_url_http) -> S3Client:
     config = Config(
         connect_timeout=_CONNECTION_TIMEOUT,
@@ -113,6 +135,7 @@ def s3_client_http(endpoint_url_http) -> S3Client:
         retries={'max_attempts': _MAX_RETRIES},
         signature_version='s3v4',
         s3={'addressing_style': 'path'},
+        max_pool_connections=100,
     )
     return boto3.client(
         's3',
@@ -122,6 +145,10 @@ def s3_client_http(endpoint_url_http) -> S3Client:
         config=config,
         endpoint_url=endpoint_url_http,
     )
+
+def upload_file_bytes() -> bytes:
+    with open('testfile.txt', 'rb') as file:
+        return file.read()
 
 def delete_multipart_uploads(s3_client: S3Client, bucket_name: str) -> None:
     """
@@ -218,9 +245,13 @@ def given_bucket(s3_client: S3Client, bucket_name: str) -> CreateBucketOutputTyp
     s3_client.get_waiter("bucket_exists").wait(Bucket=bucket_name)
     return bucket
 
-def given_object(s3_client: S3Client, bucket_name: str, object_name: str = UPLOAD_FILE_NAME) -> PutObjectOutputTypeDef:
-    with open('testfile.txt', 'rb') as file:
-        return s3_client.put_object(Bucket=bucket_name, Key=object_name, Body=file.read())
+def given_object(s3_client: S3Client, bucket_name: str, object_name: str = UPLOAD_FILE_NAME, **kwargs) -> PutObjectOutputTypeDef:
+    return s3_client.put_object(
+        Bucket=bucket_name,
+        Key=object_name,
+        Body=upload_file_bytes(),
+        ** kwargs
+    )
 
 def compute_md5_etag(data: bytes) -> str:
     # S3 single-part ETag is the hex MD5 in quotes
@@ -230,3 +261,14 @@ def compute_md5_etag(data: bytes) -> str:
 def compute_sha256_checksum_b64(data: bytes) -> str:
     # AWS returns base64-encoded checksum for SHA256
     return base64.b64encode(hashlib.sha256(data).digest()).decode("ascii")
+
+def random_name() -> str:
+    return f"{uuid.uuid4().hex}"[:63]
+
+def special_key() -> str:
+    # Includes spaces, unicode, URL-reserved chars that require escaping
+    return 'spécial key/with spaces & symbols?#[]@!$&\'()*+,;=.txt'
+
+def now_utc() -> dt.datetime:
+    # Use naive UTC timestamps as boto3 expects
+    return dt.datetime.now(dt.UTC).replace(tzinfo=None)
