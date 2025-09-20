@@ -1,6 +1,5 @@
-from typing import Any
-
 from mypy_boto3_s3.client import S3Client
+from mypy_boto3_s3.type_defs import GetObjectOutputTypeDef, PutObjectOutputTypeDef
 
 from s3mock_test import (
     UPLOAD_FILE_NAME,
@@ -26,7 +25,7 @@ def test_put_object_with_checksum_returns_correct_checksum_get_object_returns_ch
     expected_length = len(payload)
 
     # Act - PutObject with checksum
-    put_resp: dict[str, Any] = s3_client_http.put_object(
+    put_resp: PutObjectOutputTypeDef = s3_client_http.put_object(
         Bucket=bucket_name,
         Key=UPLOAD_FILE_NAME,
         Body=payload,
@@ -39,7 +38,7 @@ def test_put_object_with_checksum_returns_correct_checksum_get_object_returns_ch
     assert put_checksum == expected_checksum, "ChecksumSHA256 should match expected SHA256 (base64)"
 
     # Act - GetObject with checksum mode enabled
-    get_resp: dict[str, Any] = s3_client_http.get_object(
+    get_resp: GetObjectOutputTypeDef = s3_client_http.get_object(
         Bucket=bucket_name,
         Key=UPLOAD_FILE_NAME,
         ChecksumMode='ENABLED',
@@ -72,7 +71,7 @@ def test_put_object_creates_correct_etag_get_object_returns_etag(
     )
 
     # Act - GetObject
-    get_resp: dict[str, Any] = s3_client_http.get_object(
+    get_resp: GetObjectOutputTypeDef = s3_client_http.get_object(
         Bucket=bucket_name,
         Key=UPLOAD_FILE_NAME,
     )
@@ -103,7 +102,7 @@ def test_put_object_sets_content_encoding_get_object_returns_content_encoding(
     )
 
     # Act - GetObject
-    get_resp: dict[str, Any] = s3_client_http.get_object(
+    get_resp: GetObjectOutputTypeDef = s3_client_http.get_object(
         Bucket=bucket_name,
         Key=UPLOAD_FILE_NAME,
     )

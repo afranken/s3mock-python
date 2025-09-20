@@ -2,7 +2,7 @@
 
 default: ci
 
-ci: venv test
+ci: venv lint typecheck test
 
 venv:
 	@uv sync --group dev --no-install-project

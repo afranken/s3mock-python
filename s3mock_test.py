@@ -6,17 +6,24 @@ import re
 import time
 import uuid
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 import boto3
 import pytest
+from _pytest.fixtures import FixtureRequest
 from boto3.s3.transfer import TransferConfig
 from botocore.client import Config
 from botocore.exceptions import ClientError
+from botocore.paginate import PageIterator
 from mypy_boto3_s3.client import S3Client
-from mypy_boto3_s3.type_defs import CreateBucketOutputTypeDef, PutObjectOutputTypeDef
+from mypy_boto3_s3.type_defs import (
+    CreateBucketOutputTypeDef,
+    ListMultipartUploadsRequestTypeDef,
+    ListObjectVersionsOutputTypeDef,
+    PutObjectOutputTypeDef,
+)
 from s3transfer.manager import TransferManager
-from testcontainers.core.container import DockerContainer  # type: ignore[import-untyped]
+from testcontainers.core.container import DockerContainer
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 UPLOAD_FILE_NAME = 'testfile.txt'
@@ -40,9 +47,9 @@ _READ_TIMEOUT = 60  # AWS default
 _MAX_RETRIES = 3
 
 @pytest.fixture(scope="function", autouse=True)
-def test_name(request) -> str:
+def test_name(request: FixtureRequest) -> str:
     # Prefer originalname; fall back to name if unavailable
-    return getattr(request.node, "originalname", request.node.name)
+    return str(getattr(request.node, "originalname", request.node.name))
 
 # Bucket name max length is 63 characters.
 # Truncate the test function name to 50 characters, plus a random suffix to avoid collisions
@@ -159,7 +166,7 @@ def delete_multipart_uploads(s3_client: S3Client, bucket_name: str) -> None:
     upload_id_marker: Optional[str] = None
 
     while True:
-        params = {"Bucket": bucket_name}
+        params: ListMultipartUploadsRequestTypeDef = {"Bucket": bucket_name}
         if key_marker is not None:
             params["KeyMarker"] = key_marker
         if upload_id_marker is not None:
@@ -190,7 +197,7 @@ def delete_objects_in_bucket(
     If object lock is enabled, clear any potential legal holds before deletion.
     """
     paginator = s3_client.get_paginator("list_object_versions")
-    page_iterator: Iterable[dict] = paginator.paginate(
+    page_iterator: PageIterator[ListObjectVersionsOutputTypeDef] = paginator.paginate(
         Bucket=bucket_name,
         EncodingType="url",
     )
