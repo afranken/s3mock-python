@@ -16,7 +16,6 @@ from s3mock_test import (
     upload_file_bytes,
 )
 
-
 # Reimplementation of https://github.com/adobe/S3Mock/blob/main/integration-tests/src/test/kotlin/com/adobe/testing/s3mock/its/GetPutDeleteObjectIT.kt
 
 
