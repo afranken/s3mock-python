@@ -5,6 +5,7 @@ import uuid
 
 import botocore
 import pytest
+from botocore.exceptions import ClientError
 
 from s3mock_test import (
     ONE_MB,
@@ -44,7 +45,6 @@ def test_copy_object_succeeds_and_object_can_be_retrieved(s3_client, bucket_name
     assert compute_md5_etag(copied_body) == orig_etag
 
 
-@pytest.mark.skip(reason="Deletion of special keys is not supported yet in cleanup.")
 def test_copy_object_with_key_needing_escaping_succeeds_and_can_be_retrieved(
         s3_client,
         bucket_name: str
@@ -604,3 +604,19 @@ def test_copy_object_large_content_succeeds_with_transfer_manager(
     # Assert: ETag is preserved on a server-side copy
     assert copy_etag == etag
 
+
+def test_copy_object_to_non_existing_destination_no_such_bucket(s3_client, bucket_name: str):
+    # Arrange
+    given_bucket(s3_client, bucket_name)
+    given_object(s3_client, bucket_name)
+    destination_bucket_name = random_name()
+    destination_key = f"copyOf/{UPLOAD_FILE_NAME}"
+
+    # Act + Assert: copying to a non-existing destination bucket should fail
+    with pytest.raises(ClientError) as exc:
+        s3_client.copy_object(
+            Bucket=destination_bucket_name,
+            Key=destination_key,
+            CopySource={"Bucket": bucket_name, "Key": UPLOAD_FILE_NAME},
+        )
+    assert exc.value.response.get("Error", {}).get("Code") in ("NoSuchBucket", "404")

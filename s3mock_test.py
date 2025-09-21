@@ -7,6 +7,7 @@ import time
 import uuid
 from pathlib import Path
 from typing import Optional
+from urllib.parse import unquote as _url_unquote
 
 import boto3
 import pytest
@@ -30,12 +31,15 @@ UPLOAD_FILE_NAME = 'testfile.txt'
 UPLOAD_FILE_LENGTH = Path(UPLOAD_FILE_NAME).stat().st_size
 REGION = os.getenv("AWS_REGION", "us-east-1")
 ONE_MB = 1024 * 1024
+PREFIX = "prefix"
 
 container = (
     DockerContainer("adobe/s3mock:4.9.0")
     .with_exposed_ports(9090, 9191)
     .with_env("debug", "true")
     .with_env("COM_ADOBE_TESTING_S3MOCK_DOMAIN_INITIAL_BUCKETS", "bucket-a, bucket-b")
+    .with_env("COM_ADOBE_TESTING_S3MOCK_DOMAIN_VALID_KMS_KEYS",
+              "arn:aws:kms:us-east-1:1234567890:key/valid-test-key-id")
 )
 
 # Constants used for S3 client configuration (moved from TestS3Mock to module scope)
@@ -203,33 +207,36 @@ def delete_objects_in_bucket(
     )
 
     for page in page_iterator:
+        is_url_encoded = page.get("EncodingType") == "url"
         # Handle object versions
         for version in page.get("Versions", []) or []:
+            key = _url_unquote(version["Key"]) if is_url_encoded else version["Key"]
             if object_lock_enabled:
                 s3_client.put_object_legal_hold(
                     Bucket=bucket_name,
-                    Key=version["Key"],
+                    Key=key,
                     VersionId=version["VersionId"],
                     LegalHold={"Status": "OFF"},
                 )
             s3_client.delete_object(
                 Bucket=bucket_name,
-                Key=version["Key"],
+                Key=key,
                 VersionId=version["VersionId"],
             )
 
         # Handle delete markers
         for marker in page.get("DeleteMarkers", []) or []:
+            key = _url_unquote(marker["Key"]) if is_url_encoded else marker["Key"]
             if object_lock_enabled:
                 s3_client.put_object_legal_hold(
                     Bucket=bucket_name,
-                    Key=marker["Key"],
+                    Key=key,
                     VersionId=marker["VersionId"],
                     LegalHold={"Status": "OFF"},
                 )
             s3_client.delete_object(
                 Bucket=bucket_name,
-                Key=marker["Key"],
+                Key=key,
                 VersionId=marker["VersionId"],
             )
 
@@ -294,3 +301,90 @@ def special_key() -> str:
 def now_utc() -> dt.datetime:
     # Use naive UTC timestamps as boto3 expects
     return dt.datetime.now(dt.UTC).replace(tzinfo=None)
+
+def chars_safe_alphanumeric() -> str:
+    """
+    Chars that are safe to use (alphanumeric).
+    https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+    """
+    return (
+        "0123456789"
+        "abcdefghijklmnopqrstuvwxyz"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    )
+
+def chars_safe_special() -> str:
+    """
+    Chars that are safe yet special.
+    https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+    """
+    return "!-_.*'()"
+
+def chars_special_handling() -> str:
+    """
+    Chars that might need special handling.
+    https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+    """
+    return "&$@=;/:+ ,?"
+
+def chars_special_handling_unicode() -> str:
+    """
+    Unicode chars that might need special handling (control chars).
+    https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+    """
+    control = "".join(chr(c) for c in range(0x00, 0x20))
+    return control + chr(0x7F)
+
+def chars_to_avoid() -> str:
+    """
+    Chars to avoid.
+    https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+    """
+    return "\\{^}%`]\">[~<#|"
+
+def chars_safe() -> list[str]:
+    """
+    Returns a list with two entries: prefixed alphanumeric and safe-special sets.
+    """
+    return [
+        f"{PREFIX}{chars_safe_alphanumeric()}",
+        f"{PREFIX}{chars_safe_special()}",
+    ]
+
+def chars_safe_key() -> str:
+    """
+    Returns a single string combining alphanumeric and safe-special sets with an optional prefix.
+    """
+    return f"{PREFIX}{chars_safe_alphanumeric()}{chars_safe_special()}"
+
+def chars_special() -> list[str]:
+    """
+    Returns a list with chars that may need special handling (optionally prefixed).
+    """
+    return [
+        f"{PREFIX}{chars_special_handling()}",
+        # If needed, add unicode control chars:
+        # f"{PREFIX}{chars_special_handling_unicode()}",
+    ]
+
+def chars_special_key() -> str:
+    """
+    Returns a single string with chars that may need special handling (optionally prefixed).
+    """
+    return f"{PREFIX}{chars_special_handling()}"
+
+def chars_to_avoid_list() -> list[str]:
+    """
+    Returns a list with chars to avoid (optionally prefixed).
+    """
+    return [
+        f"{PREFIX}{chars_to_avoid()}",
+        # If needed, add unicode set variant:
+        # f"{prefix}{chars_special_handling_unicode()}",
+    ]
+
+def chars_to_avoid_key() -> str:
+    """
+    Returns a single string with chars to avoid (optionally prefixed).
+    """
+    return f"{PREFIX}{chars_to_avoid()}"
