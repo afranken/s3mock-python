@@ -9,7 +9,7 @@ venv:
 
 # Run tests
 test:
-	@uv run --no-project pytest -q
+	@uv run --no-project pytest -vv
 
 # Lint with ruff
 lint:
