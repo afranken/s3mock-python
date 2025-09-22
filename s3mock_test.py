@@ -5,6 +5,7 @@ import os
 import re
 import time
 import uuid
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote as _url_unquote
@@ -388,3 +389,23 @@ def chars_to_avoid_key() -> str:
     Returns a single string with chars to avoid (optionally prefixed).
     """
     return f"{PREFIX}{chars_to_avoid()}"
+
+# Reimplementation of the Kotlin selection of checksum algorithms.
+class ChecksumAlgorithm(str, Enum):
+    SHA256 = "SHA256"
+    SHA1 = "SHA1"
+    CRC32 = "CRC32"
+    CRC32C = "CRC32C"
+    CRC64NVME = "CRC64NVME"
+
+def checksum_algorithms() -> list[ChecksumAlgorithm]:
+    """
+    Returns the set of checksum algorithms to test/use, mirroring the original selection.
+    """
+    return [
+        ChecksumAlgorithm.SHA256,
+        ChecksumAlgorithm.SHA1,
+        ChecksumAlgorithm.CRC32,
+        ChecksumAlgorithm.CRC32C,
+        ChecksumAlgorithm.CRC64NVME,
+    ]
