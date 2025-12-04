@@ -35,7 +35,7 @@ ONE_MB = 1024 * 1024
 PREFIX = "prefix"
 
 container = (
-    DockerContainer("adobe/s3mock:4.9.0")
+    DockerContainer("adobe/s3mock:4.11.0")
     .with_exposed_ports(9090, 9191)
     .with_env("debug", "true")
     .with_env("COM_ADOBE_TESTING_S3MOCK_DOMAIN_INITIAL_BUCKETS", "bucket-a, bucket-b")
