@@ -26,6 +26,7 @@ classifiers = [
 # Runtime dependencies (for running tests/examples)
 dependencies = [
   "boto3>=1.40.35",
+  "requests>=2.32.3",
 ]
 
 [dependency-groups]
