@@ -16,7 +16,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
-  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: Apache Software License",
   "Topic :: Software Development :: Testing",
 ]
 # Runtime dependencies (for running tests/examples)
@@ -30,8 +30,8 @@ dev = [
   "pytest>=8.4.2",
   "testcontainers>=4.13.3",
   "boto3-stubs[s3]>=1.40.35",
-  "mypy>=1.18.2",
   "ruff>=0.13.1",
+  "ty>=0.0.1-alpha.33"
 ]
 
 [project.urls]
@@ -57,20 +57,7 @@ quote-style = "single"
 indent-style = "space"
 line-ending = "lf"
 
-[tool.mypy]
-python_version = "3.13"
-warn_unused_configs = true
-warn_return_any = true
-warn_unused_ignores = true
-check_untyped_defs = true
-disallow_untyped_defs = false
-no_implicit_optional = true
-pretty = true
-follow_untyped_imports = true
-
 [tool.uv]
 # Prefer an in-repo virtualenv
 managed = true
 python-preference = "managed"
-# Use a local .venv by default
-# Run: uv venv && uv sync

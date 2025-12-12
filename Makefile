@@ -1,11 +1,11 @@
-.PHONY: default ci venv test lint typecheck
+.PHONY: default ci venv test lint lint-fix typecheck
 
 default: ci
 
-ci: venv lint typecheck test
+ci: venv lint lint-fix typecheck test
 
 venv:
-	@uv sync --group dev
+	@uv sync
 
 # Run tests
 test:
@@ -16,9 +16,9 @@ lint:
 	@uv run ruff check .
 
 # Fix simple lint errors with ruff
-lint:
+lint-fix:
 	@uv run ruff check . --fix
 
-# Type-check with mypy
+# Type-check with ty
 typecheck:
-	@uv run mypy .
+	@uv run ty check .
