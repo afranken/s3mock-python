@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
   "boto3>=1.40.35",
   "requests>=2.32.3",
+  "awscrt>=0.31.1",
 ]
 
 [dependency-groups]

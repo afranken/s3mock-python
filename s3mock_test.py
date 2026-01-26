@@ -5,6 +5,7 @@ import os
 import re
 import time
 import uuid
+import zlib
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -13,6 +14,7 @@ from urllib.parse import unquote as _url_unquote
 import boto3
 import pytest
 from _pytest.fixtures import FixtureRequest
+from awscrt import checksums as awscrt_checksums
 from boto3.s3.transfer import TransferConfig
 from botocore.client import Config
 from botocore.exceptions import ClientError
@@ -416,3 +418,51 @@ def checksum_algorithms() -> list[ChecksumAlgorithm]:
         ChecksumAlgorithm.CRC32C,
         ChecksumAlgorithm.CRC64NVME,
     ]
+
+def crc32(data: bytes) -> bytes:
+    crc = zlib.crc32(data) & 0xFFFFFFFF
+    return crc.to_bytes(4, byteorder="big")
+
+def crc32_b64(data: bytes) -> str:
+    return base64.b64encode(crc32(data)).decode("ascii")
+
+def crc64nvme(data: bytes) -> bytes:
+    checksum = awscrt_checksums.crc64nvme(data)
+    return checksum.to_bytes(8, byteorder="big")
+
+def crc64nvme_b64(data: bytes) -> str:
+    return base64.b64encode(crc64nvme(data)).decode("ascii")
+
+def hex_digest(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def multipart_etag_hex(parts: list[bytes]) -> str:
+    digests = [hashlib.md5(part).digest() for part in parts]
+    combined = hashlib.md5(b"".join(digests)).hexdigest()
+    return f"{combined}-{len(parts)}"
+
+
+def multipart_crc32_checksum(parts: list[bytes]) -> str:
+    part_checksums = [
+        crc32(part)
+        for part in parts
+    ]
+    checksum_b64 = crc32_b64(b"".join(part_checksums))
+    return f"{checksum_b64}-{len(parts)}"
+
+
+def multipart_crc64nvme_checksum(parts: list[bytes]) -> str:
+    part_checksums = [
+        crc64nvme(part)
+        for part in parts
+    ]
+    checksum_b64 = crc64nvme_b64(b"".join(part_checksums))
+    return f"{checksum_b64}-{len(parts)}"
